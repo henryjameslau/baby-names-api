@@ -1,8 +1,8 @@
 import type { PageLoad } from './$types';
-import { getMeta, getNames } from '$lib/static-api';
+import { getMeta, getNames, getTop } from '$lib/static-api';
 
-export const load: PageLoad = async () => {
-	const meta = await getMeta();
+export const load: PageLoad = async ({ fetch }) => {
+	const meta = await getMeta(fetch);
 	const latestYear = Math.max(...meta.years);
 
 	const newEntriesYear = meta.years.includes(2024) ? 2024 : latestYear;
@@ -17,15 +17,15 @@ export const load: PageLoad = async () => {
 			.filter((year) => meta.years.includes(year))
 			.map(async (year) => ({
 				year,
-				data: await import('$lib/static-api').then(m => m.getTop(year))
+				data: await getTop(year, fetch)
 			}))
 	);
 	const topByYear = new Map<number, any>(topResults.map((entry) => [entry.year, entry.data]));
 	const top = topByYear.get(latestYear);
 	const [names, boysNames, girlsNames] = await Promise.all([
-		getNames(),
-		getNames('boys'),
-		getNames('girls')
+		getNames(undefined, fetch),
+		getNames('boys', fetch),
+		getNames('girls', fetch)
 	]);
 
 	const slugMap = new Map<string, string>(

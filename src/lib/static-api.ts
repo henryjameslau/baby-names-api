@@ -6,16 +6,13 @@ export type RankedEntry = { rank: number; name: string; count: number | null };
 
 const cache = new Map<string, Promise<any>>();
 
-async function fetchJson<T>(path: string): Promise<T> {
+async function fetchJson<T>(path: string, fetchFn?: typeof fetch): Promise<T> {
 	let url = path;
-	if (typeof window === 'undefined' && path.startsWith('/')) {
-		// For SSR/prerender, fetch requires an absolute URL. Use a dummy base (localhost) for static builds.
-		url = new URL(path, 'http://localhost').toString();
-	}
+	const fetcher = fetchFn ?? fetch;
 	if (!cache.has(url)) {
 		cache.set(
 			url,
-			fetch(url).then((res) => {
+			fetcher(url).then((res) => {
 				if (!res.ok) throw new Error(`Failed to fetch ${url}`);
 				return res.json();
 			})
@@ -32,57 +29,57 @@ function toFileSlug(slug: string) {
 	}
 }
 
-export async function getMeta() {
-	return fetchJson<{ years: number[]; geoYears: { boys: number[]; girls: number[] } }>(`/api/meta.json`);
+export async function getMeta(fetchFn?: typeof fetch) {
+	return fetchJson<{ years: number[]; geoYears: { boys: number[]; girls: number[] } }>(`/api/meta.json`, fetchFn);
 }
 
-export async function getYear(year: number) {
-	return fetchJson<YearEntry>(`/api/year/${year}.json`);
+export async function getYear(year: number, fetchFn?: typeof fetch) {
+	return fetchJson<YearEntry>(`/api/year/${year}.json`, fetchFn);
 }
 
-export async function getNames(sex?: Sex) {
+export async function getNames(sex?: Sex, fetchFn?: typeof fetch) {
 	const suffix = sex ? sex : 'all';
-	return fetchJson<NameEntry[]>(`/api/names/${suffix}.json`);
+	return fetchJson<NameEntry[]>(`/api/names/${suffix}.json`, fetchFn);
 }
 
-export async function getNameSeriesBySlug(slug: string) {
+export async function getNameSeriesBySlug(slug: string, fetchFn?: typeof fetch) {
 	return fetchJson<{ name: string; slug: string; boys: { year: number; count: number | null; rank: number }[]; girls: { year: number; count: number | null; rank: number }[] }>(
-		`/api/name/${toFileSlug(slug)}.json`
+		`/api/name/${toFileSlug(slug)}.json`, fetchFn
 	);
 }
 
-export async function getNameSeries(name: string) {
-	const allNames = await getNames();
+export async function getNameSeries(name: string, fetchFn?: typeof fetch) {
+	const allNames = await getNames(undefined, fetchFn);
 	const entry = allNames.find((item) => item.name.toLowerCase() === name.toLowerCase());
 	if (!entry) return null;
-	return getNameSeriesBySlug(entry.slug);
+	return getNameSeriesBySlug(entry.slug, fetchFn);
 }
 
-export async function getTop(year: number) {
-	return fetchJson<{ year: number; boys: RankedEntry[]; girls: RankedEntry[] }>(`/api/top/${year}.json`);
+export async function getTop(year: number, fetchFn?: typeof fetch) {
+	return fetchJson<{ year: number; boys: RankedEntry[]; girls: RankedEntry[] }>(`/api/top/${year}.json`, fetchFn);
 }
 
-export async function getNewEntries(year: number) {
+export async function getNewEntries(year: number, fetchFn?: typeof fetch) {
 	return fetchJson<{ year: number; compareYear: number; boys: RankedEntry[]; girls: RankedEntry[] }>(
-		`/api/top/new/${year}.json`
+		`/api/top/new/${year}.json`, fetchFn
 	);
 }
 
-export async function getGeo(year: number, sex: Sex) {
+export async function getGeo(year: number, sex: Sex, fetchFn?: typeof fetch) {
 	return fetchJson<{ year: number; sex: Sex; areas: { code: string; areaName: string; geography: string; topNames: string[]; count: number | null }[] }>(
-		`/api/geo/${year}/${sex}.json`
+		`/api/geo/${year}/${sex}.json`, fetchFn
 	);
 }
 
-export async function getSimilaritySeries(sex: Sex, slug: string) {
+export async function getSimilaritySeries(sex: Sex, slug: string, fetchFn?: typeof fetch) {
 	return fetchJson<{ name: string; sex: Sex; ranks: { year: number; rank: number }[] }>(
-		`/api/similar/series/${sex}/${toFileSlug(slug)}.json`
+		`/api/similar/series/${sex}/${toFileSlug(slug)}.json`, fetchFn
 	);
 }
 
-export async function getSimilarityNeighbors(sex: Sex, slug: string) {
+export async function getSimilarityNeighbors(sex: Sex, slug: string, fetchFn?: typeof fetch) {
 	return fetchJson<{ name: string; slug: string; sex: Sex; minYears: number; neighbors: { name: string; slug: string; sse: number; overlapYears: number }[] }>(
-		`/api/similar/${sex}/${toFileSlug(slug)}.json`
+		`/api/similar/${sex}/${toFileSlug(slug)}.json`, fetchFn
 	);
 }
 

@@ -1,110 +1,50 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import { getNameSeriesBySlug, getNames } from '$lib/static-api';
 
-type LoadEvent = Parameters<PageLoad>[0];
+export const load: PageLoad = async ({ params }) => {
+  const slug = params.slug;
+  let series = null;
+  let allNames = null;
 
-async function tryFetch<T>(fetch: LoadEvent['fetch'], path: string) {
-	const res = await fetch(path);
-	if (!res.ok) return null;
-	return (await res.json()) as T;
-}
+  // Try to fetch the series directly by slug
+  try {
+    series = await getNameSeriesBySlug(slug);
+  } catch {}
 
-function normalizeSlug(slug: string) {
-	try {
-		return encodeURIComponent(decodeURIComponent(slug));
-	} catch {
-		return encodeURIComponent(slug);
-	}
-}
+  // If not found, try to find the correct slug from all names
+  if (!series) {
+    allNames = await getNames();
+    const match = allNames.find((entry) => entry.name.toLowerCase() === decodeURIComponent(slug).toLowerCase());
+    if (match) {
+      try {
+        series = await getNameSeriesBySlug(match.slug);
+      } catch {}
+    }
+  }
 
+  if (!series) {
+    throw error(404, 'Name not found.');
+  }
 
-export const load: PageLoad = async ({ fetch, params }) => {
-	const normalizedSlug = normalizeSlug(params.slug);
-	const strippedSlug = normalizedSlug.replace(/%27/gi, '');
-	const fileSlugCandidates = Array.from(
-		new Set([
-			strippedSlug,
-			encodeURIComponent(strippedSlug),
-			normalizedSlug,
-			encodeURIComponent(normalizedSlug)
-		])
-	);
-	const meta = await fetch('/api/meta.json').then((res) => res.json());
-	const latestYear = Math.max(...meta.years);
+  // Fetch additional data as before, using static files
+  const meta = await fetch('/api/meta.json').then((res) => res.json());
+  const latestYear = Math.max(...meta.years);
+  const [geoBoys, geoGirls, similarBoys, similarGirls, allNamesResult] = await Promise.all([
+    fetch(`/api/geo/${latestYear}/boys.json`).then((res) => res.json()),
+    fetch(`/api/geo/${latestYear}/girls.json`).then((res) => res.json()),
+    fetch(`/api/similar/boys/${series.slug}.json`).then((res) => res.json()),
+    fetch(`/api/similar/girls/${series.slug}.json`).then((res) => res.json()),
+    allNames ?? getNames()
+  ]);
 
-	let series: {
-		name: string;
-		slug: string;
-		boys: { year: number; count: number | null; rank: number }[];
-		girls: { year: number; count: number | null; rank: number }[];
-	} | null = null;
-	let resolvedFileSlug = fileSlugCandidates[0];
-	let allNames: { name: string; slug: string }[] | null = null;
-
-	for (const candidate of fileSlugCandidates) {
-		const nextSeries = await tryFetch<{
-			name: string;
-			slug: string;
-			boys: { year: number; count: number | null; rank: number }[];
-			girls: { year: number; count: number | null; rank: number }[];
-		}>(fetch, `/api/name/${candidate}.json`);
-		if (nextSeries) {
-			series = nextSeries;
-			resolvedFileSlug = candidate;
-			break;
-		}
-	}
-
-	if (!series) {
-		allNames = await tryFetch<{ name: string; slug: string }[]>(fetch, `/api/names/all.json`);
-		const decodedName = decodeURIComponent(normalizedSlug).toLowerCase();
-		const match = allNames?.find((entry) => entry.name.toLowerCase() === decodedName);
-		if (match) {
-			const matchSlug = normalizeSlug(match.slug);
-			const matchStripped = matchSlug.replace(/%27/gi, '');
-			const matchCandidates = Array.from(
-				new Set([
-					matchStripped,
-					encodeURIComponent(matchStripped),
-					matchSlug,
-					encodeURIComponent(matchSlug)
-				])
-			);
-			for (const candidate of matchCandidates) {
-				const matchSeries = await tryFetch<{
-					name: string;
-					slug: string;
-					boys: { year: number; count: number | null; rank: number }[];
-					girls: { year: number; count: number | null; rank: number }[];
-				}>(fetch, `/api/name/${candidate}.json`);
-				if (matchSeries) {
-					series = matchSeries;
-					resolvedFileSlug = candidate;
-					break;
-				}
-			}
-		}
-	}
-
-	if (!series) {
-		throw error(404, 'Name not found.');
-	}
-
-	const [geoBoys, geoGirls, similarBoys, similarGirls, allNamesResult] = await Promise.all([
-		tryFetch(fetch, `/api/geo/${latestYear}/boys.json`),
-		tryFetch(fetch, `/api/geo/${latestYear}/girls.json`),
-		tryFetch(fetch, `/api/similar/boys/${resolvedFileSlug}.json`),
-		tryFetch(fetch, `/api/similar/girls/${resolvedFileSlug}.json`),
-		allNames ?? tryFetch(fetch, `/api/names/all.json`)
-	]);
-
-	return {
-		latestYear,
-		series,
-		geoBoys,
-		geoGirls,
-		similarBoys,
-		similarGirls,
-		allNames: allNames ?? allNamesResult
-	};
+  return {
+    latestYear,
+    series,
+    geoBoys,
+    geoGirls,
+    similarBoys,
+    similarGirls,
+    allNames: allNames ?? allNamesResult
+  };
 };

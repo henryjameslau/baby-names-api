@@ -7,16 +7,21 @@ export type RankedEntry = { rank: number; name: string; count: number | null };
 const cache = new Map<string, Promise<any>>();
 
 async function fetchJson<T>(path: string): Promise<T> {
-	if (!cache.has(path)) {
+	let url = path;
+	if (typeof window === 'undefined' && path.startsWith('/')) {
+		// For SSR/prerender, fetch requires an absolute URL. Use a dummy base (localhost) for static builds.
+		url = new URL(path, 'http://localhost').toString();
+	}
+	if (!cache.has(url)) {
 		cache.set(
-			path,
-			fetch(path).then((res) => {
-				if (!res.ok) throw new Error(`Failed to fetch ${path}`);
+			url,
+			fetch(url).then((res) => {
+				if (!res.ok) throw new Error(`Failed to fetch ${url}`);
 				return res.json();
 			})
 		);
 	}
-	return cache.get(path) as Promise<T>;
+	return cache.get(url) as Promise<T>;
 }
 
 function toFileSlug(slug: string) {

@@ -17,7 +17,7 @@ export const load: PageLoad = async () => {
 			.filter((year) => meta.years.includes(year))
 			.map(async (year) => ({
 				year,
-				data: await fetch(`/api/top/${year}.json`).then((res) => res.json())
+				data: await import('$lib/static-api').then(m => m.getTop(year))
 			}))
 	);
 	const topByYear = new Map<number, any>(topResults.map((entry) => [entry.year, entry.data]));

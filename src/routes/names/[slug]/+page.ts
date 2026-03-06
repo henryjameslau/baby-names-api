@@ -28,15 +28,21 @@ export const load: PageLoad = async ({ params, fetch }) => {
   }
 
   // Fetch additional data as before, using static-api helpers
-  const meta = await getMeta(fetch);
-  const latestYear = Math.max(...meta.years);
-  const [geoBoys, geoGirls, similarBoys, similarGirls, allNamesResult] = await Promise.all([
-    getGeo(latestYear, 'boys', fetch),
-    getGeo(latestYear, 'girls', fetch),
-    getSimilarityNeighbors('boys', series.slug, fetch),
-    getSimilarityNeighbors('girls', series.slug, fetch),
-    allNames ?? getNames(undefined, fetch)
-  ]);
+  let meta, latestYear;
+  try {
+    meta = await getMeta(fetch);
+    latestYear = Math.max(...meta.years);
+  } catch {
+    meta = { years: [] };
+    latestYear = undefined;
+  }
+
+  let geoBoys = null, geoGirls = null, similarBoys = null, similarGirls = null, allNamesResult = null;
+  try { geoBoys = await getGeo(latestYear, 'boys', fetch); } catch {}
+  try { geoGirls = await getGeo(latestYear, 'girls', fetch); } catch {}
+  try { similarBoys = await getSimilarityNeighbors('boys', series.slug, fetch); } catch {}
+  try { similarGirls = await getSimilarityNeighbors('girls', series.slug, fetch); } catch {}
+  try { allNamesResult = allNames ?? await getNames(undefined, fetch); } catch {}
 
   return {
     latestYear,

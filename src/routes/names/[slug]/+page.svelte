@@ -280,7 +280,7 @@
 			<h3>Boys</h3>
 			<ul>
 				{#each data.similarBoys.neighbors as entry}
-					<li><a href={`/names/${entry.slug}`}>{entry.name}</a></li>
+					<li><a href={`/names/${normalizeSlug(entry.slug)}`}>{entry.name}</a></li>
 				{/each}
 			</ul>
 		{/if}
@@ -289,7 +289,7 @@
 			<h3>Girls</h3>
 			<ul>
 				{#each data.similarGirls.neighbors as entry}
-					<li><a href={`/names/${entry.slug}`}>{entry.name}</a></li>
+					<li><a href={`/names/${normalizeSlug(entry.slug)}`}>{entry.name}</a></li>
 				{/each}
 			</ul>
 		{/if}

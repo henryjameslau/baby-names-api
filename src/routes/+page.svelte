@@ -288,10 +288,6 @@
 		gap: 0.5rem;
 		margin-top: 0.4rem;
 	}
-	.results-count {
-		margin-top: 0.5rem;
-		color: #5a5a5a;
-	}
 	.meta {
 		font-size: 0.9rem;
 		color: #6b6b6b;

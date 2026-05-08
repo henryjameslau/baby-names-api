@@ -201,6 +201,9 @@
 	<Breadcrumb links={[{ label: 'Home', href: '/' }]} />
 
 	<Hero title={data.series.name}></Hero>
+	<Section>
+		<a href="/wrapped/{data.series.slug}">✦ See {data.series.name} wrapped</a>
+	</Section>
 
 	<Section>
 		<h2>Most recent stats</h2>

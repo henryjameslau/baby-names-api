@@ -21,6 +21,7 @@ SEX_SHEETS = [
 
 YEAR_COL_RE = re.compile(r"(\d{4})\s*count", re.IGNORECASE)
 BRACKET_TOKEN_RE = re.compile(r"\s*\[[^\]]+\]\s*")
+YEAR_IN_FILENAME_RE = re.compile(r"(\d{4})")
 
 
 def find_header_index(df: pd.DataFrame) -> int:
@@ -99,6 +100,70 @@ def process_annual_workbook(year_map: dict[int, dict]) -> None:
                 if pd.isna(count):
                     continue
                 add_entry(year_map, year, sex, name, int(count))
+
+
+def find_name_count_header(rows: list[list[object]]) -> int:
+    for i, row in enumerate(rows[:20]):
+        lowered = [str(cell).strip().lower() for cell in row]
+        if "name" in lowered and "count" in lowered:
+            return i
+    return -1
+
+
+def detect_sex_from_filename(filename: str) -> str | None:
+    lowered = filename.lower()
+    if "boys" in lowered:
+        return "boys"
+    if "girls" in lowered:
+        return "girls"
+    return None
+
+
+def process_latest_year_workbooks(year_map: dict[int, dict]) -> None:
+    for path in DATA_DIR.iterdir():
+        if path in {ANNUAL_FILE, HISTORICAL_FILE}:
+            continue
+        if path.suffix.lower() not in {".xls", ".xlsx"}:
+            continue
+        if "babynames" not in path.name.lower():
+            continue
+
+        sex = detect_sex_from_filename(path.name)
+        if sex is None:
+            continue
+        year_match = YEAR_IN_FILENAME_RE.search(path.name)
+        if not year_match:
+            continue
+        year = int(year_match.group(1))
+
+        existing = year_map.get(year)
+        if existing and existing.get(sex):
+            continue
+
+        try:
+            df = pd.read_excel(path, sheet_name="Table_1", header=None, dtype=object)
+        except Exception:
+            continue
+        rows = df.values.tolist()
+        header_index = find_name_count_header(rows)
+        if header_index == -1:
+            continue
+
+        header = [str(cell).strip().lower() for cell in rows[header_index]]
+        try:
+            name_idx = header.index("name")
+            count_idx = header.index("count")
+        except ValueError:
+            continue
+
+        for row in rows[header_index + 1 :]:
+            name = normalize_name(row[name_idx] if name_idx < len(row) else "")
+            if not name:
+                continue
+            count = coerce_int(row[count_idx] if count_idx < len(row) else None)
+            if count is None:
+                continue
+            add_entry(year_map, year, sex, name, count)
 
 
 def find_historical_header(rows: list[list[object]]) -> int:
@@ -441,6 +506,7 @@ def build():
     year_map: dict[int, dict] = {}
 
     process_annual_workbook(year_map)
+    process_latest_year_workbooks(year_map)
     process_historical_workbook(year_map)
 
     years = sorted(year_map.keys())

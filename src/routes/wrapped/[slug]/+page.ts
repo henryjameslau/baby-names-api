@@ -1,14 +1,8 @@
 import { error } from '@sveltejs/kit';
-import type { PageLoad, EntryGenerator } from './$types';
+import type { PageLoad } from './$types';
 import { getNameSeriesBySlug, getNames, getMeta, getSimilarityNeighbors } from '$lib/static-api';
 
-export const entries: EntryGenerator = async () => {
-	const { readFileSync } = await import('fs');
-	const { resolve } = await import('path');
-	const raw = readFileSync(resolve('static/api/names/all.json'), 'utf-8');
-	const names: { name: string; slug: string }[] = JSON.parse(raw);
-	return names.map((n) => ({ slug: n.slug }));
-};
+export const prerender = false;
 
 export const load: PageLoad = async ({ params, fetch }) => {
 	const slug = params.slug;

@@ -2,6 +2,8 @@ import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { getNameSeriesBySlug, getNames, getMeta, getGeo, getSimilarityNeighbors } from '$lib/static-api';
 
+export const prerender = false;
+
 export const load: PageLoad = async ({ params, fetch }) => {
   const slug = params.slug;
   let series = null;

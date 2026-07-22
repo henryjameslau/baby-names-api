@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { randomChoice } from '$lib/static-api';
-	import { Hero, Section, Button, Em, Breadcrumb, Main, Details } from '@onsvisual/svelte-components';
+	import { getNames, randomChoice } from '$lib/static-api';
+	import {
+		Hero,
+		Section,
+		Button,
+		Em,
+		Breadcrumb,
+		Main,
+		Details
+	} from '@onsvisual/svelte-components';
 	import { Plot, Line, Dot, Geo, setPlotDefaults } from 'svelteplot';
 	import { toWords, format } from '@onsvisual/robo-utils';
 	import * as topojson from 'topojson-client';
@@ -44,7 +52,6 @@
 		similarGirls: {
 			neighbors: { name: string; slug: string; sse: number; overlapYears: number }[];
 		} | null;
-		allNames?: { name: string; slug: string }[];
 	};
 
 	const latestByYear = (items: { year: number; count: number | null; rank: number }[]) =>
@@ -185,8 +192,11 @@
 		}
 	};
 
-	function pickRandom() {
-		const entry = data.allNames ? randomChoice(data.allNames) : null;
+	let allNames: { name: string; slug: string }[] | null = null;
+
+	async function pickRandom() {
+		allNames = allNames ?? (await getNames());
+		const entry = randomChoice(allNames);
 		if (entry) {
 			goto(`/names/${normalizeSlug(entry.slug)}`);
 		}
@@ -373,11 +383,11 @@
 
 		{#if boyAreas.length}
 			<Details title="List of areas where {data.series.name} is a popular boys name">
-			<ul>
-				{#each boyAreas.sort((a, b) => a.count < b.count) as area}
-					<li>{area.areaName} ({area.geography}) {area.count ?? ''}</li>
-				{/each}
-			</ul>
+				<ul>
+					{#each boyAreas.sort((a, b) => a.count < b.count) as area}
+						<li>{area.areaName} ({area.geography}) {area.count ?? ''}</li>
+					{/each}
+				</ul>
 			</Details>
 		{/if}
 
